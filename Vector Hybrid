@@ -1,0 +1,1031 @@
+The Hybrid Vector Strategy: MiniLM + E5
+Purpose	MiniLM	E5
+General meaning	Best at capturing semantic similarity	Strong on query-intent and information search
+Short inputs	Handles short phrases very well	Optimized for full questions or text spans
+Symbolic clarity	Good for poetry, metaphor, emotion	Better for factual or topic-based relevance
+Speed & size	Very fast, low memory	Slightly larger, but still efficient
+
+Symbolic Attractor Use Case
+Let’s say the user inputs:
+
+“The bridge is gone, and I am cold.”
+
+Step	MiniLM Outcome	E5 Outcome
+Vector meaning	Might align with “loss,” “transition,” “sadness”	Might align with “isolation,” “abandonment,” “regret”
+Closest symbols	"⧍" (change), "🧊" (cold), "⚰" (loss)	"☿" (mercury/ambiguity), "gate", "shadow"
+
+MiniLM might lean poetic, emotional;
+E5 might lean thematic, conceptual.
+
+---
+
+# vector_engine.py
+
+from sentence_transformers import SentenceTransformer
+import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
+
+# Load both models
+minilm_model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+e5_model = SentenceTransformer('intfloat/e5-small-v2')  # Or use e5-base-v2 if RAM allows
+
+def encode_with_minilm(text):
+    return minilm_model.encode(text, convert_to_numpy=True)
+
+def encode_with_e5(text):
+    formatted = f"query: {text}"  # E5 expects 'query:' prefix for queries
+    return e5_model.encode(formatted, convert_to_numpy=True)
+
+def fuse_vectors(text, threshold=0.7):
+    vec_minilm = encode_with_minilm(text)
+    vec_e5 = encode_with_e5(text)
+
+    similarity = cosine_similarity([vec_minilm], [vec_e5])[0][0]
+
+    if similarity >= threshold:
+        fused = (vec_minilm + vec_e5) / 2
+        source = "fused"
+    else:
+        # Pick the more dominant depending on which returns stronger match later
+        fused = vec_minilm  # default fallback for now
+        source = "minilm-dominant"
+
+    return fused, {
+        "similarity": float(similarity),
+        "source": source,
+        "minilm": vec_minilm.tolist(),
+        "e5": vec_e5.tolist()
+    }
+
+# Optional: Normalize function if needed
+def normalize(vector):
+    norm = np.linalg.norm(vector)
+    return vector / norm if norm != 0 else vector
+
+---
+
+Then in vector_memory.py, import the new fusion engine like this at the top:
+Replace store_vector() in vector_memory.py with this:
+
+from sentence_transformers import SentenceTransformer
+import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
+
+# Load models
+minilm_model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+e5_model = SentenceTransformer('intfloat/e5-small-v2')  # or 'e5-base-v2'
+
+def encode_with_minilm(text):
+    return minilm_model.encode(text, convert_to_numpy=True)
+
+def encode_with_e5(text):
+    formatted = f"query: {text}"  # E5 expects 'query:' prefix for queries
+    return e5_model.encode(formatted, convert_to_numpy=True)
+
+def embed_text(text, model="minilm"):
+    if model == "minilm":
+        return encode_with_minilm(text).tolist()
+    elif model == "e5":
+        return encode_with_e5(text).tolist()
+    else:
+        raise ValueError("Unknown model.")
+
+def fuse_vectors(text, threshold=0.7):
+    vec_minilm = encode_with_minilm(text)
+    vec_e5 = encode_with_e5(text)
+
+    similarity = cosine_similarity([vec_minilm], [vec_e5])[0][0]
+
+    if similarity >= threshold:
+        fused = (vec_minilm + vec_e5) / 2
+        source = "fused"
+    else:
+        fused = vec_minilm
+        source = "minilm-dominant"
+
+    return fused.tolist(), {
+        "similarity": float(similarity),
+        "source": source,
+        "minilm": vec_minilm.tolist(),
+        "e5": vec_e5.tolist()
+    }
+
+---
+
+change vector_memory.py:
+
+import os
+import json
+import hashlib
+from pathlib import Path
+from vector_engine import fuse_vectors
+
+# Define where vector memory will be stored
+memory_file = Path("data/vector_memory.json")
+memory_file.parent.mkdir(parents=True, exist_ok=True)
+
+def store_vector(text):
+    # Hash the text as a unique ID
+    hash_key = hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+    # Fuse vector using MiniLM + E5 logic
+    fused_vector, debug = fuse_vectors(text)
+
+    # Create record to save
+    record = {
+        "id": hash_key,
+        "text": text,
+        "vector": fused_vector,
+        "source": debug["source"],
+        "similarity": debug["similarity"]
+    }
+
+    # Load existing memory
+    if memory_file.exists():
+        with open(memory_file, "r", encoding="utf-8") as f:
+            memory = json.load(f)
+    else:
+        memory = []
+
+    # Append and save
+    memory.append(record)
+    with open(memory_file, "w", encoding="utf-8") as f:
+        json.dump(memory, f, indent=2)
+
+    print(f"🧠 Vector stored for: '{text[:60]}...' [source: {debug['source']}, sim: {debug['similarity']:.2f}]")
+
+
+---
+
+Test it:
+
+✅ Create this file as inspect_vectors.py inside core-project/:
+python
+
+import json
+from pathlib import Path
+
+memory_file = Path("data/vector_memory.json")
+
+def inspect_memory(limit=5):
+    if not memory_file.exists():
+        print("❌ No vector memory file found.")
+        return
+
+    with open(memory_file, "r", encoding="utf-8") as f:
+        memory = json.load(f)
+
+    print(f"🧠 Loaded {len(memory)} vector entries.\n")
+
+    # Show the most recent entries (last n)
+    for entry in memory[-limit:]:
+        print(f"📝 Text: {entry['text']}")
+        print(f"🔹 Source: {entry.get('source', 'unknown')}")
+
+        similarity = entry.get("similarity", None)
+        if isinstance(similarity, (float, int)):
+            print(f"📈 Similarity (MiniLM vs E5): {similarity:.2f}")
+        else:
+            print("📈 Similarity (MiniLM vs E5): n/a")
+
+        print(f"🔑 ID: {entry['id'][:10]}...\n")
+
+if __name__ == "__main__":
+    inspect_memory()
+
+
+if __name__ == "__main__":
+    inspect_memory()
+▶️ How to run it:
+In your terminal inside the core-project/ folder, type:
+
+bash
+Copy
+Edit
+py inspect_vectors.py
+🧠 Example Output:
+yaml
+Copy
+Edit
+🧠 Loaded 12 vector entries.
+
+📝 Text: The serpent burned the bridge.
+🔹 Source: fused
+📈 Similarity (MiniLM vs E5): 0.82
+🔑 ID: 095ba0372e...
+
+📝 Text: I feel like I’m dissolving into static.
+🔹 Source: minilm-dominant
+📈 Similarity (MiniLM vs E5): 0.65
+🔑 ID: ef0c7320b7...
+This script will confirm:
+
+The system is storing and fusing vectors correctly.
+
+Which model (MiniLM or E5) "won" the fusion decision.
+
+How similar the two vectors were (a useful debugging metric later).
+
+---
+
+ that output means your system is successfully reading from vector_memory.json and parsing the data entries! However, none of those entries have fused vector metadata yet (e.g. source, similarity), which is why you see:
+
+bash
+Copy
+Edit
+🔹 Source: unknown
+📈 Similarity (MiniLM vs E5): n/a
+✅ Here's what's happening:
+You’ve run earlier sessions with only spaCy vectors, and now you've upgraded the system to use MiniLM + E5 fusion — but the old entries don’t have that info yet.
+✅ To fix this, run:
+bash
+Copy
+Edit
+pip install sentence-transformers
+If you're using Python 3.10+ and pip is bound to another version, you can run:
+
+bash
+Copy
+Edit
+py -m pip install sentence-transformers
+Let’s write a script to reprocess existing entries and recompute their fused vectors, similarity, and source:
+
+🔁 upgrade_old_vectors.py (create this file)
+python
+Copy
+Edit
+import json
+from pathlib import Path
+from vector_engine import encode_with_minilm, encode_with_e5
+from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
+
+memory_file = Path("data/vector_memory.json")
+
+def upgrade_vectors():
+    if not memory_file.exists():
+        print("❌ No memory file found.")
+        return
+
+    with open(memory_file, "r", encoding="utf-8") as f:
+        memory = json.load(f)
+
+    upgraded = []
+    for entry in memory:
+        text = entry["text"]
+        vec_minilm = encode_with_minilm(text)
+        vec_e5 = encode_with_e5(text)
+
+        similarity = cosine_similarity([vec_minilm], [vec_e5])[0][0]
+        fused = (vec_minilm + vec_e5) / 2 if similarity >= 0.7 else vec_minilm
+        source = "fused" if similarity >= 0.7 else "minilm-dominant"
+
+        entry["vector"] = fused.tolist()
+        entry["similarity"] = float(similarity)
+        entry["source"] = source
+        upgraded.append(entry)
+
+    with open(memory_file, "w", encoding="utf-8") as f:
+        json.dump(upgraded, f, indent=2)
+
+    print(f"✅ Upgraded {len(upgraded)} vector entries with fused data.")
+
+if __name__ == "__main__":
+    upgrade_vectors()
+▶️ Run it:
+bash
+Copy
+Edit
+py upgrade_old_vectors.py
+Then run your inspector again:
+
+bash
+Copy
+Edit
+py inspect_vectors.py
+
+---
+
+If you're running into a known compatibility issue between Transformers and Keras 3. The error is clear:
+
+❗ "Your currently installed version of Keras is Keras 3, but this is not yet supported in Transformers."
+
+✅ To fix it:
+Run this command to install the compatible version:
+
+bash
+Copy
+Edit
+pip install tf-keras
+Then try again:
+
+bash
+Copy
+Edit
+py upgrade_old_vectors.py
+If you want to fully avoid TensorFlow errors (since sentence-transformers can use PyTorch only), you can also do this:
+
+(Optional) Make Transformers prefer PyTorch:
+You can set an environment variable to skip loading TensorFlow entirely:
+
+bash
+Copy
+Edit
+set USE_TF=0
+This is helpful if you're not using TensorFlow models or don't want it to try loading both backends.
+
+---
+
+✅ Perfect — you’ve successfully upgraded all 18 vector entries with fused MiniLM + E5 data. That means your hybrid vector memory is now enhanced, modernized, and ready for clustering, response logic, or inference with better nuance.
+
+Here’s a quick summary of where you’re at:
+
+✅ What You Just Did:
+✅ Installed necessary dependencies (tf-keras)
+
+✅ Downloaded both vector models (MiniLM + E5)
+
+✅ Fused the old spacy vectors into dual-model embeddings
+
+✅ Stored model source + similarity tracking in your JSON memory
+
+✅ Avoided duplication; everything stays JSON-compatible and extendable
+
+---
+
+🧠 What You Can Do Next:
+1. Inspect results:
+
+bash
+Copy
+Edit
+py inspect_vectors.py
+You should now see:
+
+Source = fused or minilm-dominant
+
+Real similarity scores (not n/a)
+
+📝 Text: The serpent burned the bridge.
+🔹 Source: minilm-dominant
+📈 Similarity (MiniLM vs E5): 0.18
+🔑 ID: 2ffccf8d6f...
+
+---
+
+2. Enable advanced clustering (semantic attractors):
+If not already done, make sure symbol_cluster.py uses these updated vectors for deeper conceptual grouping.
+
+✅ Full symbol_cluster.py (Advanced Clustering Version)
+python
+Copy
+Edit
+import json
+import numpy as np
+from pathlib import Path
+from sklearn.cluster import KMeans
+from sklearn.metrics.pairwise import cosine_similarity
+
+# Load vector memory
+memory_path = Path("data/vector_memory.json")
+
+def load_vector_memory():
+    if not memory_path.exists():
+        print("❌ No memory found.")
+        return []
+
+    with open(memory_path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+def cluster_memory(entries, n_clusters=3):
+    if len(entries) < n_clusters:
+        n_clusters = max(1, len(entries) // 2)
+
+    vectors = [entry["vector"] for entry in entries]
+    kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+    labels = kmeans.fit_predict(vectors)
+
+    clustered = {i: [] for i in range(n_clusters)}
+    for idx, label in enumerate(labels):
+        clustered[label].append(entries[idx])
+    return clustered
+
+def summarize_cluster(cluster):
+    # Extract keywords, symbols, emotions (if present)
+    texts = [entry["text"] for entry in cluster]
+    emotions = [entry.get("emotion") for entry in cluster if "emotion" in entry]
+    symbols = [entry.get("symbol") for entry in cluster if "symbol" in entry]
+
+    summary = {
+        "texts": texts,
+        "symbols": list(set(symbols)) if symbols else [],
+        "emotions": list(set(emotions)) if emotions else []
+    }
+    return summary
+
+def main():
+    entries = load_vector_memory()
+    if not entries:
+        return
+
+    clusters = cluster_memory(entries, n_clusters=3)
+    for cid, cluster in clusters.items():
+        print(f"\n🌀 Cluster {cid} — {len(cluster)} entries")
+        summary = summarize_cluster(cluster)
+
+        if summary["symbols"]:
+            print(f"   🔗 Symbols: {', '.join(summary['symbols'])}")
+        if summary["emotions"]:
+            print(f"   ❤️ Emotions: {', '.join(summary['emotions'])}")
+        
+        print("   ✍️ Text samples:")
+        for text in summary["texts"][:3]:
+            print(f"     - {text}")
+
+if __name__ == "__main__":
+    main()
+
+---
+
+✅ Updated symbol_cluster.py with Visualization & Similarity Filtering
+python
+Copy
+Edit
+import json
+import numpy as np
+from pathlib import Path
+from sklearn.cluster import KMeans
+from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.decomposition import PCA
+import matplotlib.pyplot as plt
+
+# Load vector memory
+memory_path = Path("data/vector_memory.json")
+
+def load_vector_memory():
+    if not memory_path.exists():
+        print("❌ No memory found.")
+        return []
+
+    with open(memory_path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+def cluster_memory(entries, n_clusters=3):
+    vectors = [entry["vector"] for entry in entries]
+    kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+    labels = kmeans.fit_predict(vectors)
+
+    clustered = {i: [] for i in range(n_clusters)}
+    for idx, label in enumerate(labels):
+        clustered[label].append(entries[idx])
+    return clustered, labels
+
+def summarize_cluster(cluster):
+    texts = [entry["text"] for entry in cluster]
+    emotions = [entry.get("emotion") for entry in cluster if "emotion" in entry]
+    symbols = [entry.get("symbol") for entry in cluster if "symbol" in entry]
+
+    return {
+        "texts": texts,
+        "symbols": list(set(symbols)) if symbols else [],
+        "emotions": list(set(emotions)) if emotions else []
+    }
+
+def plot_clusters(vectors, labels, entries):
+    reduced = PCA(n_components=2).fit_transform(vectors)
+    colors = ['red', 'blue', 'green', 'purple', 'orange', 'cyan']
+
+    plt.figure(figsize=(10, 7))
+    for i, point in enumerate(reduced):
+        label = labels[i]
+        color = colors[label % len(colors)]
+        plt.scatter(point[0], point[1], color=color, alpha=0.6)
+
+        # Optional: show symbol if present
+        symbol = entries[i].get("symbol", "")
+        if symbol:
+            plt.text(point[0], point[1], symbol, fontsize=9)
+
+    plt.title("🌀 Vector Memory Cluster Visualization")
+    plt.xlabel("Component 1")
+    plt.ylabel("Component 2")
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+def main():
+    entries = load_vector_memory()
+    if not entries:
+        return
+
+    vectors = [entry["vector"] for entry in entries]
+    clustered, labels = cluster_memory(entries, n_clusters=3)
+
+    for cid, cluster in clustered.items():
+        print(f"\n🌀 Cluster {cid} — {len(cluster)} entries")
+        summary = summarize_cluster(cluster)
+        if summary["symbols"]:
+            print(f"   🔗 Symbols: {', '.join(summary['symbols'])}")
+        if summary["emotions"]:
+            print(f"   ❤️ Emotions: {', '.join(summary['emotions'])}")
+        print("   ✍️ Text samples:")
+        for text in summary["texts"][:3]:
+            print(f"     - {text}")
+
+    plot_clusters(vectors, labels, entries)
+
+if __name__ == "__main__":
+    main()
+🔧 To run:
+bash
+Copy
+Edit
+pip install matplotlib scikit-learn
+py symbol_cluster.py
+This will visualize your symbolic clusters and optionally overlay emoji-like symbols if they're in your memory.
+
+---
+
+
+✅ 1. Real-time Updates on Input
+Goal: After each new input, automatically re-cluster and re-visualize to reflect the new memory.
+
+🛠 How to Do It:
+Add a call to cluster_vectors() inside main.py right after storing a new vector
+
+Move visualization code into a function you can call any time
+
+You can also make it toggleable (e.g., show_graph=True)
+
+Update main.py:
+
+python
+Copy
+Edit
+from symbol_cluster import cluster_vectors_and_plot
+
+# After store_vector(user_input)
+store_vector(user_input)
+cluster_vectors_and_plot(show_graph=True)
+Add to symbol_cluster.py:
+
+python
+Copy
+Edit
+def cluster_vectors_and_plot(show_graph=False):
+    entries = load_vector_memory()
+    if not entries:
+        return
+
+    vectors = [entry["vector"] for entry in entries]
+    clustered, labels = cluster_memory(entries, n_clusters=3)
+
+    if show_graph:
+        plot_clusters(vectors, labels, entries)
+
+    return clustered
+✅ 2. Symbol-Weighted Graph Overlays
+Goal: Use symbol importance (like frequency or emotional weight) to scale the dots or color them more meaningfully.
+
+🛠 How to Do It:
+Count how often each symbol appears
+
+Weight each vector dot’s size or color intensity based on frequency or emotion type
+
+
+In plot_clusters() (inside symbol_cluster.py):
+
+python
+Copy
+Edit
+from collections import Counter
+
+def plot_clusters(vectors, labels, entries):
+    reduced = PCA(n_components=2).fit_transform(vectors)
+    colors = ['red', 'blue', 'green', 'purple', 'orange', 'cyan']
+
+    # Count symbol frequency
+    symbol_counts = Counter(entry.get("symbol", "") for entry in entries)
+
+    plt.figure(figsize=(10, 7))
+    for i, point in enumerate(reduced):
+        label = labels[i]
+        symbol = entries[i].get("symbol", "")
+        size = 50 + 10 * symbol_counts[symbol] if symbol else 30
+        color = colors[label % len(colors)]
+        plt.scatter(point[0], point[1], color=color, alpha=0.6, s=size)
+
+        if symbol:
+            plt.text(point[0], point[1], symbol, fontsize=9)
+
+    plt.title("🌀 Symbol-Weighted Vector Clusters")
+    plt.xlabel("Component 1")
+    plt.ylabel("Component 2")
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+🧠 Result:
+Every time you enter a phrase, the graph updates immediately
+
+Symbols that show up more often stand out bigger
+
+You visually see the emergent attractors forming in real time
+
+
+
+You likely have two versions of symbol_cluster.py:
+
+The older one had a cluster_vectors() function (used for detecting symbolic attractors, maybe via averaging or similarity).
+
+The newer one—which you just implemented for plotting—uses cluster_vectors_and_plot() and does not define cluster_vectors().
+
+🧠 What to do:
+If both functionalities are useful, merge them.
+
+✅ FIX: Updated symbol_cluster.py that supports both:
+python
+Copy
+Edit
+import json
+import numpy as np
+from pathlib import Path
+from sklearn.cluster import KMeans
+from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.decomposition import PCA
+import matplotlib.pyplot as plt
+from collections import Counter
+
+memory_path = Path("data/vector_memory.json")
+
+def load_vector_memory():
+    if not memory_path.exists():
+        print("❌ No memory found.")
+        return []
+    with open(memory_path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+def cluster_memory(entries, n_clusters=3):
+    vectors = [entry["vector"] for entry in entries]
+    kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+    labels = kmeans.fit_predict(vectors)
+
+    clustered = {i: [] for i in range(n_clusters)}
+    for idx, label in enumerate(labels):
+        clustered[label].append(entries[idx])
+    return clustered, labels
+
+def summarize_cluster(cluster):
+    texts = [entry["text"] for entry in cluster]
+    emotions = [entry.get("emotion") for entry in cluster if "emotion" in entry]
+    symbols = [entry.get("symbol") for entry in cluster if "symbol" in entry]
+    return {
+        "texts": texts,
+        "symbols": list(set(symbols)) if symbols else [],
+        "emotions": list(set(emotions)) if emotions else []
+    }
+
+def plot_clusters(vectors, labels, entries):
+    reduced = PCA(n_components=2).fit_transform(vectors)
+    colors = ['red', 'blue', 'green', 'purple', 'orange', 'cyan']
+    symbol_counts = Counter(entry.get("symbol", "") for entry in entries)
+
+    plt.figure(figsize=(10, 7))
+    for i, point in enumerate(reduced):
+        label = labels[i]
+        symbol = entries[i].get("symbol", "")
+        size = 50 + 10 * symbol_counts[symbol] if symbol else 30
+        color = colors[label % len(colors)]
+        plt.scatter(point[0], point[1], color=color, alpha=0.6, s=size)
+        if symbol:
+            plt.text(point[0], point[1], symbol, fontsize=9)
+
+    plt.title("🌀 Symbol-Weighted Vector Clusters")
+    plt.xlabel("Component 1")
+    plt.ylabel("Component 2")
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+def cluster_vectors_and_plot(show_graph=False):
+    entries = load_vector_memory()
+    if not entries:
+        return
+
+    vectors = [entry["vector"] for entry in entries]
+    clustered, labels = cluster_memory(entries, n_clusters=3)
+
+    if show_graph:
+        plot_clusters(vectors, labels, entries)
+
+    return clustered
+
+# 🆕 Minimal attractor detector (simulates old cluster_vectors behavior)
+def cluster_vectors():
+    entries = load_vector_memory()
+    if not entries:
+        return []
+
+    symbols = {}
+    for entry in entries:
+        symbol = entry.get("symbol")
+        if symbol:
+            symbols.setdefault(symbol, []).append(entry["vector"])
+
+    new_attractors = []
+    for sym, vectors in symbols.items():
+        if len(vectors) >= 3:
+            centroid = np.mean(vectors, axis=0)
+            new_attractors.append({
+                "symbol": sym,
+                "meaning": [sym],
+                "weight": float(len(vectors))  # crude weight = count
+            })
+
+    return new_attractors
+✅ Then in main.py, you can safely do:
+python
+Copy
+Edit
+from symbol_cluster import cluster_vectors, cluster_vectors_and_plot
+
+
+Here is your updated main.py with the real-time chart included when exiting the session:
+
+python
+Copy
+Edit
+import sys
+import re
+from parser import parse_input, extract_symbolic_units
+from web_parser import process_web_url
+from vector_memory import store_vector
+from symbol_cluster import cluster_vectors_and_plot
+
+def is_url(text):
+    return re.match(r"https?://", text.strip()) is not None
+
+def main():
+    print("🧠 Hybrid AI: Symbolic + Vector Memory")
+    print("Type a thought or paste a URL (type 'exit' to quit).\n")
+
+    while True:
+        user_input = input("💬 You: ").strip()
+        if user_input.lower() in ("exit", "quit"):
+            break
+
+        if is_url(user_input):
+            print("🌐 Detected URL. Parsing web content...")
+            process_web_url(user_input)
+        else:
+            print("📝 Detected input. Parsing and storing...")
+            parse_input(user_input)
+            store_vector(user_input)
+
+            # Extract and print symbolic units
+            symbols = extract_symbolic_units(user_input)
+            if symbols:
+                print(f"\n✨ Extracted symbols:")
+                for s in symbols:
+                    print(f"   → {s['symbol']} ({s['name']}) [matched: {s['matched_keyword']}]")
+                print("\n🗣️ Response:")
+                for sym in symbols:
+                    print(f"   The presence of {sym['symbol']} suggests a connection to {sym['matched_keyword']}.")
+            else:
+                print("🌀 No symbolic units extracted.")
+                print("🤔 I couldn't find any clear symbols in that. But I’ve stored the meaning.")
+
+    # Show real-time clustering chart at the end
+    print("\n🔍 Checking for emergent patterns...")
+    cluster_vectors_and_plot(show_graph=True)
+
+if __name__ == "__main__":
+    main()
+✅ Now, when you type exit, the cluster chart will open right after your session ends.
+
+---
+
+3. Upgrade the response engine:
+Allow the assistant to:
+
+Weigh which symbols were activated
+
+Compare similarity to prior thoughts (retrieval)
+
+Pick "memory nodes" with symbolic/emotional weight
+
+📄 main.py (Full Version with Symbol Weighting)
+python
+Copy
+Edit
+import sys
+import re
+from collections import Counter
+from parser import parse_input, extract_symbolic_units
+from web_parser import process_web_url
+from vector_memory import store_vector
+from symbol_cluster import cluster_vectors_and_plot
+
+def is_url(text):
+    return re.match(r"https?://", text.strip()) is not None
+
+def main():
+    print("🧠 Hybrid AI: Symbolic + Vector Memory")
+    print("Type a thought or paste a URL (type 'exit' to quit).\n")
+
+    while True:
+        user_input = input("💬 You: ").strip()
+        if user_input.lower() in ("exit", "quit"):
+            break
+
+        if is_url(user_input):
+            print("🌐 Detected URL. Parsing web content...")
+            process_web_url(user_input)
+        else:
+            print("📝 Detected input. Parsing and storing...")
+            parse_input(user_input)
+            store_vector(user_input)
+
+            # Extract and print symbolic units with weighted response
+            symbols = extract_symbolic_units(user_input)
+            if symbols:
+                # Count weights by matched keyword
+                freq = Counter([s["matched_keyword"] for s in symbols])
+
+                print(f"\n✨ Extracted symbols:")
+                for s in symbols:
+                    weight = freq[s["matched_keyword"]]
+                    print(f"   → {s['symbol']} ({s['name']}) [matched: {s['matched_keyword']}, weight: {weight}]")
+
+                print("\n🗣️ Response:")
+                for s in sorted(symbols, key=lambda x: freq[x["matched_keyword"]], reverse=True):
+                    print(f"   The symbol {s['symbol']} (from '{s['matched_keyword']}') carries strong meaning here.")
+            else:
+                print("🌀 No symbolic units extracted.")
+                print("🤔 I couldn't find any clear symbols in that. But I’ve stored the meaning.")
+
+            # Optional: Real-time graph visualization
+            cluster_vectors_and_plot(show_graph=True)
+
+    # Final pattern check (non-visual)
+    print("\n🔍 Checking for emergent patterns...")
+    cluster_vectors_and_plot(show_graph=False)
+
+if __name__ == "__main__":
+    main()
+
+---
+
+✅ Step 1: Add retrieve_similar_vectors() to vector_memory.py
+Append this to the bottom of your vector_memory.py:
+
+python
+Copy
+Edit
+from vector_engine import encode_with_minilm
+from sklearn.metrics.pairwise import cosine_similarity
+
+def retrieve_similar_vectors(query, top_k=3, threshold=0.4):
+    if not memory_file.exists():
+        return []
+
+    with open(memory_file, "r", encoding="utf-8") as f:
+        memory = json.load(f)
+
+    query_vec = encode_with_minilm(query).reshape(1, -1)
+    results = []
+
+    for entry in memory:
+        vec = np.array(entry["vector"]).reshape(1, -1)
+        sim = cosine_similarity(query_vec, vec)[0][0]
+        if sim >= threshold:
+            results.append((sim, entry))
+
+    results.sort(reverse=True, key=lambda x: x[0])
+    return results[:top_k]
+✅ Step 2: Update main.py with memory reflection
+Replace this section in main.py (under "📝 Detected input...") with:
+
+python
+Copy
+Edit
+from vector_memory import retrieve_similar_vectors
+
+# ...
+
+print("📝 Detected input. Parsing and storing...")
+parse_input(user_input)
+store_vector(user_input)
+
+# Retrieve memory
+similar_entries = retrieve_similar_vectors(user_input)
+if similar_entries:
+    print(f"\n🧠 Related memory found:")
+    for score, entry in similar_entries:
+        print(f"   {entry['text']} [sim: {score:.2f}]")
+Keep the symbol extraction logic after it.
+
+
+---
+
+Great — moving on! You already finished:
+
+✅ Real-time vector + symbol storage
+✅ Cluster plotting with symbol weighting
+✅ Memory upgrade (MiniLM + E5 fusion)
+✅ Response logic prep (symbol/emotion retrieval)
+
+🧠 Next Step: Upgrade the response engine
+Now it’s time to make it talk back with memory.
+
+🎯 Goal:
+When you type something, the AI should:
+
+Compare it to past inputs via vector similarity
+
+Weigh symbols/emotions from memory
+
+Respond with a blend of retrieved thoughts + current meaning
+
+
+---
+
+import sys
+import re
+from parser import parse_input, extract_symbolic_units
+from web_parser import process_web_url
+from vector_memory import store_vector, retrieve_similar_vectors
+from symbol_cluster import cluster_vectors_and_plot
+
+
+def is_url(text):
+    return re.match(r"https?://", text.strip()) is not None
+
+
+def generate_response(user_input, extracted_symbols):
+    similar = retrieve_similar_vectors(user_input)
+    if not similar:
+        return "I'm still learning. Nothing comes to mind yet."
+
+    response = "\U0001f9e0 I recall similar thoughts:\n"
+    for sim, memory in similar:
+        sym = memory.get("symbol", "")
+        emo = memory.get("emotion", "(none)")
+        txt = memory["text"]
+        response += f" - {txt} ({sym}, {emo}, sim={sim:.2f})\n"
+
+    if extracted_symbols:
+        response += "\n\U0001f517 Symbolic cues detected:"
+        for sym in extracted_symbols:
+            response += f"\n → {sym['symbol']} ({sym['name']})"
+
+    return response
+
+
+def main():
+    print("\U0001f9e0 Hybrid AI: Symbolic + Vector Memory")
+    print("Type a thought or paste a URL (type 'exit' to quit).\n")
+
+    while True:
+        user_input = input("💬 You: ").strip()
+        if user_input.lower() in ("exit", "quit"):
+            break
+
+        if is_url(user_input):
+            print("🌐 Detected URL. Parsing web content...")
+            process_web_url(user_input)
+        else:
+            print("📝 Detected input. Parsing and storing...")
+            parse_input(user_input)
+            store_vector(user_input)
+            cluster_vectors_and_plot(show_graph=True)
+
+            symbols = extract_symbolic_units(user_input)
+            if symbols:
+                print("\n✨ Extracted symbols:")
+                for s in symbols:
+                    print(f"   → {s['symbol']} ({s['name']}) [matched: {s['matched_keyword']}]")
+            else:
+                print("🌀 No symbolic units extracted.")
+
+            response = generate_response(user_input, symbols)
+            print("\n🗣️ Response:")
+            print(response)
+
+    print("\n🔍 Checking for emergent patterns...")
+    cluster_vectors_and_plot(show_graph=True)
+
+
+if __name__ == "__main__":
+    main()
+
+---
+
+✅ Main engine with symbolic memory and vector-based response logic is now fully integrated.
+
+You can:
+
+Add thoughts or URLs.
+
+See symbolic + vector clustering visualized in real time.
+
+Get memory-based symbolic responses retrieved from prior thoughts.
