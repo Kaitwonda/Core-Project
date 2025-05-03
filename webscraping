@@ -1,0 +1,82 @@
+Since the core engine can now store and analyze symbolic + vector information, web scraping will let it:
+
+Pull live knowledge from articles, blogs, and forums.
+
+Extract symbolic/emotional meaning from web content.
+
+Vectorize that meaning and link it to user memory for future recall or reasoning.
+
+✅ Step 1: Update or confirm web_parser.py includes:
+We want to:
+
+Fetch a URL
+
+Extract visible text
+
+Run parse_input() and store_vector() on it
+
+Here’s a refined full version of web_parser.py:
+
+python
+Copy
+Edit
+import requests
+from bs4 import BeautifulSoup
+from parser import parse_input
+from vector_memory import store_vector
+
+def extract_text_from_url(url):
+    try:
+        response = requests.get(url, timeout=8)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        # Remove scripts and styles
+        for tag in soup(["script", "style", "noscript"]):
+            tag.decompose()
+
+        text = soup.get_text(separator=' ')
+        return ' '.join(text.split())  # clean extra whitespace
+    except Exception as e:
+        print(f"❌ Failed to fetch or parse: {e}")
+        return ""
+
+def process_web_url(url):
+    print(f"🌐 Fetching: {url}")
+    text = extract_text_from_url(url)
+    if not text:
+        return
+
+    preview = text[:300] + "..." if len(text) > 300 else text
+    print(f"📝 Preview: {preview}\n")
+    print("🔎 Parsing symbolic + vector meaning...")
+    parse_input(text)
+    store_vector(text)
+✅ Step 2: Confirm main.py already routes URLs to this function:
+You've already got:
+
+python
+Copy
+Edit
+if is_url(user_input):
+    print("🌐 Detected URL. Parsing web content...")
+    process_web_url(user_input)
+So now it’s fully connected.
+
+✅ Step 3: Test it live:
+Try pasting something like:
+
+bash
+Copy
+Edit
+💬 You: https://en.wikipedia.org/wiki/Symbolism
+And see if it:
+
+Extracts readable content
+
+Parses symbols and emotions
+
+Stores vectors
+
+---
+
