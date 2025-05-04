@@ -80,3 +80,311 @@ Stores vectors
 
 ---
 
+Add link-aware memory – so the AI remembers where info came from.
+
+✅ What We’ll Add:
+When processing a URL:
+
+Store the original URL inside each memory record
+
+Mark entries as "web" sources vs typed thoughts
+
+Optionally boost symbol/emotion weight if the source is reliable
+
+🧠 Step-by-Step Plan:
+1. Update store_vector() in vector_memory.py
+Allow it to accept an optional source_url and source_type (like "web" or "user").
+
+Here’s the updated version:
+
+python
+Copy
+Edit
+def store_vector(text, source_type="user", source_url=None):
+    hash_key = hashlib.sha256(text.encode("utf-8")).hexdigest()
+    fused_vector, debug = fuse_vectors(text)
+
+    record = {
+        "id": hash_key,
+        "text": text,
+        "vector": fused_vector,
+        "source": debug["source"],
+        "similarity": debug["similarity"],
+        "source_type": source_type
+    }
+
+    if source_url:
+        record["source_url"] = source_url
+
+    if memory_file.exists():
+        with open(memory_file, "r", encoding="utf-8") as f:
+            memory = json.load(f)
+    else:
+        memory = []
+
+    memory.append(record)
+    with open(memory_file, "w", encoding="utf-8") as f:
+        json.dump(memory, f, indent=2)
+
+    print(f"🧠 Vector stored for: '{text[:60]}...' [source: {debug['source']}, sim: {debug['similarity']:.2f}]")
+2. Update web_parser.py to pass that info
+Inside your process_web_url() function, change:
+
+python
+Copy
+Edit
+    parse_input(chunk)
+    store_vector(chunk)
+to:
+
+python
+Copy
+Edit
+    parse_input(chunk)
+    store_vector(chunk, source_type="web", source_url=url)
+
+---
+
+ make the assistant mention source URLs when recalling memories or generating symbolic summaries later — like:
+
+“This idea resembles a previous insight from Wikipedia on Fire: [link] 🔥”
+
+✅ Step-by-Step: Link-Aware Memory Recall
+1. Update retrieve_similar_vectors() in vector_memory.py
+Make it return the URL (if available) alongside the match.
+
+Here’s the updated version:
+
+python
+Copy
+Edit
+def retrieve_similar_vectors(query, top_k=3, threshold=0.4):
+    if not memory_file.exists():
+        return []
+
+    with open(memory_file, "r", encoding="utf-8") as f:
+        memory = json.load(f)
+
+    query_vec = encode_with_minilm(query).reshape(1, -1)
+    results = []
+
+    for entry in memory:
+        vec = np.array(entry["vector"]).reshape(1, -1)
+        sim = cosine_similarity(query_vec, vec)[0][0]
+        if sim >= threshold:
+            results.append((sim, entry))
+
+    results.sort(reverse=True, key=lambda x: x[0])
+    return results[:top_k]
+That stays mostly the same — the key change will be how we use the results.
+
+2. In main.py, modify the response logic to print source links if present
+Inside this section:
+
+python
+Copy
+Edit
+similar = retrieve_similar_vectors(user_input)
+if similar:
+    print("\n🔁 Similar thoughts retrieved:")
+    for score, entry in similar:
+        print(f"   → {entry['text'][:60]}... (sim: {score:.2f})")
+Replace it with:
+
+python
+Copy
+Edit
+similar = retrieve_similar_vectors(user_input)
+if similar:
+    print("\n🔁 Similar thoughts retrieved:")
+    for score, entry in similar:
+        source_note = f" | 🔗 Source: {entry['source_url']}" if entry.get("source_url") else ""
+        print(f"   → {entry['text'][:60]}... (sim: {score:.2f}){source_note}")
+🧠 Result:
+If a memory came from Wikipedia, it will now show up like this:
+
+less
+Copy
+Edit
+→ Fires are rapid oxidation events... (sim: 0.67) | 🔗 Source: https://en.wikipedia.org/wiki/Fire
+
+---
+
+✅ Everything's working as intended:
+Web scraping pulled 148 useful chunks.
+
+Symbol matching found multiple matches:
+
+🔥 (Fire) for heat, destruction, intensity
+
+△ (Triangle) for fire
+
+Symbol + Emotion saving works. You’re getting:
+
+consistent emotion tagging (pain, anger)
+
+full symbolic contexts per chunk
+
+Vector storage is happening for every chunk.
+
+⚠️ What’s missing (but fixable):
+These vector entries don’t know they came from a URL.
+
+That’s because store_vector() isn’t receiving a source_url= argument during web chunk processing.
+
+✅ Quick Fix Plan:
+Just change this line in web_parser.py inside process_web_url:
+
+python
+Copy
+Edit
+parse_input(chunk)
+store_vector(chunk)
+to:
+
+python
+Copy
+Edit
+parse_input(chunk)
+store_vector(chunk, source_url=url)
+And update the store_vector() function like this:
+
+python
+Copy
+Edit
+def store_vector(text, source_url=None):
+    ...
+    record = {
+        "id": hash_key,
+        "text": text,
+        "vector": fused_vector,
+        "source": debug["source"],
+        "similarity": debug["similarity"],
+        "source_url": source_url  # ✅ Add this
+    }
+
+---
+
+✅ 1. Auto-label & prioritize trusted sources
+We’ll adjust store_vector() to:
+
+detect domains (e.g., wikipedia.org)
+
+add "source_trust": "high" if from a known list
+
+allow future logic to weigh these higher in responses
+
+Update store_vector() (in vector_memory.py):
+Add this inside the function, after checking source_url:
+
+python
+Copy
+Edit
+    trust_map = {
+        "wikipedia.org": "high",
+        "nature.com": "high",
+        "sciencedirect.com": "high",
+        "arxiv.org": "medium",
+        "reddit.com": "low",
+        "unknown": "unknown"
+    }
+
+    if source_url:
+        domain = source_url.split("/")[2].replace("www.", "")
+        record["source_url"] = source_url
+        record["source_trust"] = trust_map.get(domain, "unknown")
+✅ 2. "Recall narrative" in responses
+We’ll improve generate_response() in main.py to:
+
+Mention source trust (like: “from a trusted scientific source”)
+
+Use natural phrasing instead of raw lists
+
+Replace the response section with this:
+python
+Copy
+Edit
+    if not similar:
+        return "I'm still learning. Nothing comes to mind yet."
+
+    response = "🧠 Here's what I remember:\n"
+    for sim, memory in similar:
+        sym = memory.get("symbol", "")
+        emo = memory.get("emotion", "(none)")
+        txt = memory["text"]
+        trust = memory.get("source_trust", "unknown")
+        source_note = ""
+        if memory.get("source_url"):
+            source_note = f" (source: {memory['source_url']})"
+        if trust == "high":
+            trust_note = " — from a trusted source"
+        elif trust == "low":
+            trust_note = " — source may be unreliable"
+        else:
+            trust_note = ""
+
+        response += f" - {txt[:100]}...{source_note}{trust_note} (sim={sim:.2f})\n"
+
+    if extracted_symbols:
+        response += "\n🔗 Symbolic cues detected:"
+        for sym in extracted_symbols:
+            response += f"\n → {sym['symbol']} ({sym['name']})"
+
+    return response
+
+---
+
+✅ Changes to generate_response()
+We’ll:
+
+Sort matches by trust level first (high > medium > low > unknown)
+
+Filter out "low" and "unknown" if at least one "high" or "medium" match exists
+
+Here’s the revised function to drop in:
+
+python
+Copy
+Edit
+def generate_response(user_input, extracted_symbols):
+    similar = retrieve_similar_vectors(user_input)
+    if not similar:
+        return "I'm still learning. Nothing comes to mind yet."
+
+    # Sort by trust level and similarity
+    trust_order = {"high": 0, "medium": 1, "low": 2, "unknown": 3}
+    similar.sort(key=lambda x: (trust_order.get(x[1].get("source_trust", "unknown"), 3), -x[0]))
+
+    # Try to filter out low/untrusted if better ones exist
+    top_trust_levels = [entry[1].get("source_trust", "unknown") for entry in similar]
+    if any(level in ("high", "medium") for level in top_trust_levels):
+        similar = [pair for pair in similar if pair[1].get("source_trust", "unknown") in ("high", "medium")]
+
+    response = "🧠 Here's what I remember:\n"
+    for sim, memory in similar:
+        sym = memory.get("symbol", "")
+        emo = memory.get("emotion", "(none)")
+        txt = memory["text"]
+        trust = memory.get("source_trust", "unknown")
+        source_note = f" (source: {memory['source_url']})" if memory.get("source_url") else ""
+
+        if trust == "high":
+            trust_note = " — from a trusted source"
+        elif trust == "medium":
+            trust_note = " — moderately trusted"
+        elif trust == "low":
+            trust_note = " — caution: low-trust source"
+        else:
+            trust_note = " — source unknown"
+
+        response += f" - {txt[:100]}...{source_note}{trust_note} (sim={sim:.2f})\n"
+
+    if extracted_symbols:
+        response += "\n🔗 Symbolic cues detected:"
+        for sym in extracted_symbols:
+            response += f"\n → {sym['symbol']} ({sym['name']})"
+
+    return response
+
+---
+
