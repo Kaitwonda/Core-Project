@@ -14,16 +14,16 @@ Unlike traditional AI focused on simple data retrieval or task execution, this a
 This diagram illustrates the core thinking and deduction processes within the 2-Node architecture.
 
 graph LR
-    A[User Input] --> B(Dynamic Bridge)
+    A(User Input) --> B[Dynamic Bridge]
     B --> C{Logic Node}
     B --> D{Symbolic Node}
-    C --> E[Thinking: Factual]
-    D --> F[Thinking: Symbolic]
-    E --> G[Deduction: Logic]
-    F --> H[Deduction: Meaning]
-    G --> I(Response)
+    C --> E(Thinking: Factual)
+    D --> F(Thinking: Symbolic)
+    E --> G(Deduction: Logic)
+    F --> H(Deduction: Meaning)
+    G --> I[Response Output]
     H --> I
-    I --> J[User Output]
+    I --> J(System Output)
 
     style A fill:#f9f,stroke:#333,stroke-width:2px
     style B fill:#bfb,stroke:#333,stroke-width:2px
