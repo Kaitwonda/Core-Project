@@ -9,41 +9,17 @@ Key Idea
 Unlike traditional AI focused on simple data retrieval or task execution, this architecture aims for nuanced understanding, incorporating context, emotions, and deeper meanings—pushing toward a more human-like intelligence.
 
 
-```mermaid
-%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#2b3b52'}}}%%
-flowchart LR
-    %% Input Processing
-    A[Raw Input] --> B{Dynamic Bridge<br>▸ Entropy Analysis<br>▸ Affect Detection<br>▸ Recursion Counter}
-    B -->|Factual/Low Complexity| C[Logic Node]
-    B -->|Abstract/Emotional| D[Symbolic Node]
-    
-    %% Logic Node Process
-    subgraph LN [Logic Node Storage]
-        C --> E[Vector Embedding]
-        E --> F[Factual Memory<br>(Vector Database)]
-        F --> G[Structured Retrieval]
-        G --> H[Logical Deduction<br>"IF Paris=capital THEN France"]
-    end
-    
-    %% Symbolic Node Process
-    subgraph SN [Symbolic Node Storage]
-        D --> I[Metaphor Detection]
-        I --> J[Symbol Clustering<br>Emotional Tags]
-        J --> K[Conceptual Memory<br>(Symbol Graph)]
-        K --> L[Associative Reasoning<br>"Fire 🔥 → Passion/Chaos"]
-    end
-    
-    %% Memory Interactions
-    H --> M[(Hybrid Memory)]
-    L --> M
-    M -->|Context Recall| B
-    
-    %% Styling
-    style B fill:#4a148c,color:white
-    style LN fill:#1a237e,color:white
-    style SN fill:#4a148c,color:white
-```
-
+graph LR
+    A[User Input] --> B(Dynamic Bridge)
+    B --> C{Logic Node}
+    B --> D{Symbolic Node}
+    C --> E[Thinking: Factual Inference]
+    D --> F[Thinking: Symbolic Interpretation]
+    E --> G[Deduction: Logical Conclusion]
+    F --> H[Deduction: Meaning Synthesis]
+    G --> I(Response)
+    H --> I
+    I --> J[User Output]
 
 II. Core Components
 A. Logic Node
@@ -135,5 +111,6 @@ Enhanced Similarity: Measures conceptual closeness.
 Emotion-Aware Suggestions: Proposes contextually appropriate symbols.
 Memory Optimization Strategies: Keeps memory efficient by pruning outdated data.
 Routing Logic: Dynamic Bridge’s rules (e.g., high entropy → Symbolic Node).
+
 Conclusion
 This AI architecture is a sophisticated framework designed to transcend traditional information processing. By integrating a Logic Node for facts, a Symbolic Node for abstract meanings, and a Dynamic Bridge for context-aware routing, it mimics human cognition. The 4-phase curriculum fosters a developmental journey from self-awareness to abstract reasoning, supported by advanced algorithms for symbol processing and emotional understanding. Implementing this involves coding core components in processing_nodes.py, programming the curriculum in curriculum.py, and enhancing capabilities with optimized techniques. This approach holds immense potential for creating AI that not only computes but truly understands—bridging the gap to human-like intelligence.
