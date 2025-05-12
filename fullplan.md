@@ -13,18 +13,28 @@ Unlike traditional AI focused on simple data retrieval or task execution, this a
 
 This diagram illustrates the core thinking and deduction processes within the 2-Node architecture.
 
-```mermaid
 graph LR
     A[User Input] --> B(Dynamic Bridge)
     B --> C{Logic Node}
     B --> D{Symbolic Node}
-    C --> E[Thinking: Factual Inference]
-    D --> F[Thinking: Symbolic Interpretation]
-    E --> G[Deduction: Logical Conclusion]
-    F --> H[Deduction: Meaning Synthesis]
+    C --> E[Thinking: Factual]
+    D --> F[Thinking: Symbolic]
+    E --> G[Deduction: Logic]
+    F --> H[Deduction: Meaning]
     G --> I(Response)
     H --> I
     I --> J[User Output]
+
+    style A fill:#f9f,stroke:#333,stroke-width:2px
+    style B fill:#bfb,stroke:#333,stroke-width:2px
+    style C fill:#ccf,stroke:#333,stroke-width:2px
+    style D fill:#fcf,stroke:#333,stroke-width:2px
+    style E fill:#ddd,stroke:#333,stroke-width:1px
+    style F fill:#ddd,stroke:#333,stroke-width:1px
+    style G fill:#eee,stroke:#333,stroke-width:1px
+    style H fill:#eee,stroke:#333,stroke-width:1px
+    style I fill:#afa,stroke:#333,stroke-width:2px
+    style J fill:#f9f,stroke:#333,stroke-width:2px
 
 II. Core Components
 A. Logic Node
