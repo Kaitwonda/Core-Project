@@ -9,6 +9,11 @@ Key Idea
 Unlike traditional AI focused on simple data retrieval or task execution, this architecture aims for nuanced understanding, incorporating context, emotions, and deeper meanings—pushing toward a more human-like intelligence.
 
 
+## 2-Node Thinking and Deduction Map
+
+This diagram illustrates the core thinking and deduction processes within the 2-Node architecture.
+
+```mermaid
 graph LR
     A[User Input] --> B(Dynamic Bridge)
     B --> C{Logic Node}
