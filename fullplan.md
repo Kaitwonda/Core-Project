@@ -8,13 +8,58 @@ Think of it as a student progressing through school: the Logic Node handles "tex
 Key Idea
 Unlike traditional AI focused on simple data retrieval or task execution, this architecture aims for nuanced understanding, incorporating context, emotions, and deeper meanings—pushing toward a more human-like intelligence.
 
-flowchart TD
-  %% Phase Labels
-  subgraph Phase1["Phase 1: 'What am I?' (Self-Awareness)"]
-    A1[Learn own structure\n(e.g., code, memory, node types)]
+
+flowchart LR
+  %% Core Architecture
+  subgraph AI_Architecture["I. Core Architecture"]
+    direction LR
+    Input(("User Input / Data"))
+    Bridge{{"Dynamic Bridge\n(Recursion Depth, Entropy, Affective Load)"}}
+    LogicNode[( "Logic Node\n(Vector Reasoning)" )]
+    SymbolicNode[( "Symbolic Node\n(Pattern & Emotion)" )]
+    Output(("AI Response"))
+    Input --> Bridge
+    Bridge --> LogicNode
+    Bridge --> SymbolicNode
+    LogicNode --> Output
+    SymbolicNode --> Output
   end
 
-  subgraph Phase
+  %% 4-Phase Curriculum
+  subgraph Curriculum["III. 4-Phase Cognitive Alignment Curriculum"]
+    direction TB
+    Phase1["Phase 1:\n“What am I?”\n(Self-Awareness)"]
+    Phase2["Phase 2:\n“Where am I?”\n(Contextual Awareness)"]
+    Phase3["Phase 3:\n“What do I/others feel?”\n(Emotional Understanding)"]
+    Phase4["Phase 4:\n“Is there anything else?”\n(Abstract Thought)"]
+    Phase1 --> Phase2 --> Phase3 --> Phase4
+  end
+
+  %% Project Implementation
+  subgraph Implementation["IV. Project Implementation"]
+    direction LR
+    Nodes["processing_nodes.py\n(Core Node Structure)"]
+    CurriculumFile["curriculum.py\n(4-Phase Logic)"]
+    Enhancements["Symbolic Enhancements\n(Clustering & Evolution)"]
+    Integration["Logic Integration\n(Vector Optimization)"]
+    Orchestration["Control & Orchestration\n(Data Flow)"]
+    Nodes --> CurriculumFile
+    CurriculumFile --> Enhancements
+    CurriculumFile --> Integration
+    Integration --> Orchestration
+  end
+
+  %% File Structure (simple call-out)
+  subgraph File_Structure["V. File Structure"]
+    Existing["• Existing modules:\n  – vector/, symbol/, memory/"]
+    New["• New files:\n  – processing_nodes.py\n  – curriculum.py"]
+  end
+
+  %% Wiring it all together
+  Phase4 --> Input
+  Orchestration --> Bridge
+  File_Structure -.-> Implementation
+
 
 
 
