@@ -10,29 +10,27 @@ Unlike traditional AI focused on simple data retrieval or task execution, this a
 
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#2b3b52', 'edgeLabelBackground':'#fff'}}}%%
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#2b3b52'}}}%%
 flowchart LR
     %% Input Processing
-    A[Raw Input] --> B{Dynamic Bridge\n\n▸ Entropy Analysis\n▸ Affect Detection\n▸ Recursion Counter}
+    A[Raw Input] --> B{Dynamic Bridge<br>▸ Entropy Analysis<br>▸ Affect Detection<br>▸ Recursion Counter}
     B -->|Factual/Low Complexity| C[Logic Node]
     B -->|Abstract/Emotional| D[Symbolic Node]
     
     %% Logic Node Process
-    subgraph LN [Logic Node Storage & Reasoning]
-        direction TB
+    subgraph LN [Logic Node Storage]
         C --> E[Vector Embedding]
-        E --> F[Factual Memory]\n[[Vector Database]]
+        E --> F[Factual Memory<br>(Vector Database)]
         F --> G[Structured Retrieval]
-        G --> H[Logical Deduction]\n("IF Paris=capital THEN France")
+        G --> H[Logical Deduction<br>"IF Paris=capital THEN France"]
     end
     
     %% Symbolic Node Process
-    subgraph SN [Symbolic Node Storage & Reasoning]
-        direction TB
+    subgraph SN [Symbolic Node Storage]
         D --> I[Metaphor Detection]
-        I --> J[Symbol Clustering]\n{{Emotional Tags}}
-        J --> K[Conceptual Memory]\n[[Symbol Graph]]
-        K --> L[Associative Reasoning]\n("Fire 🔥 → Passion/Chaos")
+        I --> J[Symbol Clustering<br>Emotional Tags]
+        J --> K[Conceptual Memory<br>(Symbol Graph)]
+        K --> L[Associative Reasoning<br>"Fire 🔥 → Passion/Chaos"]
     end
     
     %% Memory Interactions
@@ -40,25 +38,10 @@ flowchart LR
     L --> M
     M -->|Context Recall| B
     
-    %% Curriculum Integration
-    subgraph CU [Curriculum Phases]
-        direction LR
-        P1[Phase 1\nSelf-Model] --> P2[Phase 2\nWorld-Model]
-        P2 --> P3[Phase 3\nAffect-Model]
-        P3 --> P4[Phase 4\nAbstract-Model]
-    end
-    
-    M -->|Phase Progression| CU
-    CU -->|Updated Weights| F
-    CU -->|Symbol Taxonomy| K
-    
-    %% Annotations
+    %% Styling
     style B fill:#4a148c,color:white
     style LN fill:#1a237e,color:white
     style SN fill:#4a148c,color:white
-    style CU fill:#00695c,color:white
-    linkStyle 0,1 stroke:#7e57c2,stroke-width:2px
-    linkStyle 2,3,4,5,6,7 stroke:#26a69a
 ```
 
 
