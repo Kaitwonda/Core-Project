@@ -8,34 +8,6 @@ Think of it as a student progressing through school: the Logic Node handles "tex
 Key Idea
 Unlike traditional AI focused on simple data retrieval or task execution, this architecture aims for nuanced understanding, incorporating context, emotions, and deeper meanings—pushing toward a more human-like intelligence.
 
-
-## 2-Node Thinking and Deduction Map
-
-This diagram illustrates the core thinking and deduction processes within the 2-Node architecture.
-
-graph LR
-    A(User Input) --> B[Dynamic Bridge]
-    B --> C{Logic Node}
-    B --> D{Symbolic Node}
-    C --> E(Thinking: Factual)
-    D --> F(Thinking: Symbolic)
-    E --> G(Deduction: Logic)
-    F --> H(Deduction: Meaning)
-    G --> I[Response Output]
-    H --> I
-    I --> J(System Output)
-
-    style A fill:#f9f,stroke:#333,stroke-width:2px
-    style B fill:#bfb,stroke:#333,stroke-width:2px
-    style C fill:#ccf,stroke:#333,stroke-width:2px
-    style D fill:#fcf,stroke:#333,stroke-width:2px
-    style E fill:#ddd,stroke:#333,stroke-width:1px
-    style F fill:#ddd,stroke:#333,stroke-width:1px
-    style G fill:#eee,stroke:#333,stroke-width:1px
-    style H fill:#eee,stroke:#333,stroke-width:1px
-    style I fill:#afa,stroke:#333,stroke-width:2px
-    style J fill:#f9f,stroke:#333,stroke-width:2px
-
 II. Core Components
 A. Logic Node
 Function: Processes factual information, logical reasoning, and structured data using vector representations (numerical encodings of text, akin to word embeddings).
