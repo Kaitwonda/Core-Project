@@ -8,6 +8,18 @@ Think of it as a student progressing through school: the Logic Node handles "tex
 Key Idea
 Unlike traditional AI focused on simple data retrieval or task execution, this architecture aims for nuanced understanding, incorporating context, emotions, and deeper meanings—pushing toward a more human-like intelligence.
 
+flowchart TD
+  %% Phase Labels
+  subgraph Phase1["Phase 1: 'What am I?' (Self-Awareness)"]
+    A1[Learn own structure\n(e.g., code, memory, node types)]
+  end
+
+  subgraph Phase
+
+
+
+
+
 II. Core Components
 A. Logic Node
 Function: Processes factual information, logical reasoning, and structured data using vector representations (numerical encodings of text, akin to word embeddings).
