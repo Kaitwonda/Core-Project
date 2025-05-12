@@ -9,60 +9,57 @@ Key Idea
 Unlike traditional AI focused on simple data retrieval or task execution, this architecture aims for nuanced understanding, incorporating context, emotions, and deeper meanings—pushing toward a more human-like intelligence.
 
 
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#2b3b52', 'edgeLabelBackground':'#fff'}}}%%
 flowchart LR
-  %% Core Architecture
-  subgraph AI_Architecture["I. Core Architecture"]
-    direction LR
-    Input(("User Input / Data"))
-    Bridge{{"Dynamic Bridge\n(Recursion Depth, Entropy, Affective Load)"}}
-    LogicNode[( "Logic Node\n(Vector Reasoning)" )]
-    SymbolicNode[( "Symbolic Node\n(Pattern & Emotion)" )]
-    Output(("AI Response"))
-    Input --> Bridge
-    Bridge --> LogicNode
-    Bridge --> SymbolicNode
-    LogicNode --> Output
-    SymbolicNode --> Output
-  end
-
-  %% 4-Phase Curriculum
-  subgraph Curriculum["III. 4-Phase Cognitive Alignment Curriculum"]
-    direction TB
-    Phase1["Phase 1:\n“What am I?”\n(Self-Awareness)"]
-    Phase2["Phase 2:\n“Where am I?”\n(Contextual Awareness)"]
-    Phase3["Phase 3:\n“What do I/others feel?”\n(Emotional Understanding)"]
-    Phase4["Phase 4:\n“Is there anything else?”\n(Abstract Thought)"]
-    Phase1 --> Phase2 --> Phase3 --> Phase4
-  end
-
-  %% Project Implementation
-  subgraph Implementation["IV. Project Implementation"]
-    direction LR
-    Nodes["processing_nodes.py\n(Core Node Structure)"]
-    CurriculumFile["curriculum.py\n(4-Phase Logic)"]
-    Enhancements["Symbolic Enhancements\n(Clustering & Evolution)"]
-    Integration["Logic Integration\n(Vector Optimization)"]
-    Orchestration["Control & Orchestration\n(Data Flow)"]
-    Nodes --> CurriculumFile
-    CurriculumFile --> Enhancements
-    CurriculumFile --> Integration
-    Integration --> Orchestration
-  end
-
-  %% File Structure (simple call-out)
-  subgraph File_Structure["V. File Structure"]
-    Existing["• Existing modules:\n  – vector/, symbol/, memory/"]
-    New["• New files:\n  – processing_nodes.py\n  – curriculum.py"]
-  end
-
-  %% Wiring it all together
-  Phase4 --> Input
-  Orchestration --> Bridge
-  File_Structure -.-> Implementation
-
-
-
-
+    %% Input Processing
+    A[Raw Input] --> B{Dynamic Bridge\n\n▸ Entropy Analysis\n▸ Affect Detection\n▸ Recursion Counter}
+    B -->|Factual/Low Complexity| C[Logic Node]
+    B -->|Abstract/Emotional| D[Symbolic Node]
+    
+    %% Logic Node Process
+    subgraph LN [Logic Node Storage & Reasoning]
+        direction TB
+        C --> E[Vector Embedding]
+        E --> F[Factual Memory]\n[[Vector Database]]
+        F --> G[Structured Retrieval]
+        G --> H[Logical Deduction]\n("IF Paris=capital THEN France")
+    end
+    
+    %% Symbolic Node Process
+    subgraph SN [Symbolic Node Storage & Reasoning]
+        direction TB
+        D --> I[Metaphor Detection]
+        I --> J[Symbol Clustering]\n{{Emotional Tags}}
+        J --> K[Conceptual Memory]\n[[Symbol Graph]]
+        K --> L[Associative Reasoning]\n("Fire 🔥 → Passion/Chaos")
+    end
+    
+    %% Memory Interactions
+    H --> M[(Hybrid Memory)]
+    L --> M
+    M -->|Context Recall| B
+    
+    %% Curriculum Integration
+    subgraph CU [Curriculum Phases]
+        direction LR
+        P1[Phase 1\nSelf-Model] --> P2[Phase 2\nWorld-Model]
+        P2 --> P3[Phase 3\nAffect-Model]
+        P3 --> P4[Phase 4\nAbstract-Model]
+    end
+    
+    M -->|Phase Progression| CU
+    CU -->|Updated Weights| F
+    CU -->|Symbol Taxonomy| K
+    
+    %% Annotations
+    style B fill:#4a148c,color:white
+    style LN fill:#1a237e,color:white
+    style SN fill:#4a148c,color:white
+    style CU fill:#00695c,color:white
+    linkStyle 0,1 stroke:#7e57c2,stroke-width:2px
+    linkStyle 2,3,4,5,6,7 stroke:#26a69a
+```
 
 
 II. Core Components
